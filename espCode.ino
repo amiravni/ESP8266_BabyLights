@@ -22,7 +22,7 @@
 #include <BlynkSimpleEsp8266.h>
 #include <Adafruit_NeoPixel.h>
 #include "DHTesp.h"
-
+#include <WidgetRTC.h>
 
 // You should get Auth Token in the Blynk App.
 // Go to the Project Settings (nut icon).
@@ -36,18 +36,25 @@ char pass[] = MYPASS;
 DHTesp dht;
 long dhtLastTime = 0;
 
+WidgetTerminal terminal(V4);
+WidgetRTC rtc;
 
 Adafruit_NeoPixel strip = Adafruit_NeoPixel(NUMOFLEDS, STRIPPIN, NEO_GRB + NEO_KHZ800);
 int redDay = 255;
 int greenDay = 128;
 int blueDay = 0;
 int redNight = 255;
-int greenNight = 0;
+int greenNight = 15;
 int blueNight = 0;
-int ledsNum = NUMOFLEDS/2;
-float power = 1.0;
+int ledsNum = 84;
+float power = 0.5;
 bool isDay = false;
+bool sendToTerminal = false;
 
+String getClock()
+{
+  return String(day()) + "." + month() + "." + year() + "  " + hour() + ":" + minute() + ":" + second();
+}
 
 void TurnDayLights() {
   for (int iii=0;iii<ledsNum;iii++) {
@@ -57,6 +64,12 @@ void TurnDayLights() {
     strip.setPixelColor(iii, strip.Color(0, 0, 0) ); 
   }    
   strip.show();
+    if (sendToTerminal)
+  {
+  terminal.print(getClock());
+  terminal.println("-->Day Lights are ON!");
+  terminal.flush();
+  }
 }
 
 void TurnNightLights() {
@@ -67,7 +80,13 @@ void TurnNightLights() {
     strip.setPixelColor(iii, strip.Color(0, 0, 0) ); 
   }  
   strip.show();
-  //Serial.println("Night lights are on");
+  if (sendToTerminal)
+  {
+  terminal.print(getClock());
+  terminal.println("-->Night Lights are ON!");
+  terminal.flush();  
+  }
+  //PRINTLNDEBUG("Night lights are on");
 }
 
 void refreshLeds() {
@@ -77,66 +96,96 @@ void refreshLeds() {
 
 BLYNK_WRITE(V0)
 {
-  Serial.print("Timer (V0): Got a value: ");
-  Serial.println(param.asStr());
-
+  PRINTDEBUG("Timer (V0): Got a value: ");
+  PRINTLNDEBUG(param.asStr());
+  terminal.print(getClock());
+  terminal.print("-->Timer: value: ");
+  terminal.println(param.asStr());
+  terminal.flush();  
   if (param.asInt() == 0)  isDay = false;
   else  isDay = true;
+  sendToTerminal = true;
   refreshLeds();
+  sendToTerminal = false;
 }
 
 BLYNK_WRITE(V1)
 {
-  Serial.print("Button (V1): Got a value: ");
-  Serial.println(param.asStr());
+  PRINTDEBUG("Button (V1): Got a value: ");
+  PRINTLNDEBUG(param.asStr());
+  terminal.print(getClock());
+  terminal.print("-->Button: value: ");
+  terminal.println(param.asStr());
+  terminal.flush();    
   if (param.asInt() == 0)  isDay = false;
   else  isDay = true; 
+  sendToTerminal = true;
   refreshLeds();
+  sendToTerminal = false;
 }
 
 BLYNK_WRITE(V2)
 {
-  Serial.print("Power Slider (V2): Got a value: ");
-  Serial.println(param.asStr());
+  PRINTDEBUG("Power Slider (V2): Got a value: ");
+  PRINTLNDEBUG(param.asStr());
   power = param.asFloat(); 
   refreshLeds(); 
 }
 
 BLYNK_WRITE(V3)
 {
-  Serial.print("LEDS# Slider (V3): Got a value: ");
-  Serial.println(param.asStr());
+  PRINTDEBUG("LEDS# Slider (V3): Got a value: ");
+  PRINTLNDEBUG(param.asStr());
   if (param.asInt() < NUMOFLEDS) ledsNum = param.asInt();
   else   ledsNum = NUMOFLEDS;
   refreshLeds();
   //ledsNum = min(NUMOFLEDS,param.asInt());  
 }
 
+/*
 BLYNK_WRITE(V4)
 {
-  Serial.print("Day Color (V4): Got a value: ");
-  Serial.print(param[0].asStr());
-  Serial.print(" , ");
-  Serial.print(param[1].asStr());
-  Serial.print(" , ");
-  Serial.println(param[2].asStr());      
+  PRINTDEBUG("Day Color (V4): Got a value: ");
+  PRINTDEBUG(param[0].asStr());
+  PRINTDEBUG(" , ");
+  PRINTDEBUG(param[1].asStr());
+  PRINTDEBUG(" , ");
+  PRINTLNDEBUG(param[2].asStr());      
   redDay = param[0].asInt();
   greenDay = param[1].asInt();
   blueDay = param[2].asInt();  
   refreshLeds();
 }
-
+*/
 BLYNK_WRITE(V5)
 {
-  Serial.print("Night Color (V5): Got a value: ");
-  Serial.print(param[0].asStr());
-  Serial.print(" , ");
-  Serial.print(param[1].asStr());
-  Serial.print(" , ");
-  Serial.println(param[2].asStr()); 
+  PRINTDEBUG("Color (V5): Got a value: ");
+  PRINTDEBUG(param[0].asStr());
+  PRINTDEBUG(" , ");
+  PRINTDEBUG(param[1].asStr());
+  PRINTDEBUG(" , ");
+  PRINTLNDEBUG(param[2].asStr()); 
+  if (isDay) 
+  {
+  redDay = param[0].asInt();
+  greenDay = param[1].asInt();
+  blueDay = param[2].asInt();      
+  }
+  else 
+  {
   redNight = param[0].asInt();
   greenNight = param[1].asInt();
   blueNight = param[2].asInt();  
+  }
+  terminal.print(getClock());
+  terminal.print("-->New colors: (");
+  terminal.print(param[0].asInt());
+  terminal.print(" , ");
+  terminal.print(param[1].asInt());
+  terminal.print(" , ");
+  terminal.print(param[2].asInt());  
+  terminal.println(")");  
+  terminal.flush();     
   refreshLeds();
 }
 
@@ -146,7 +195,7 @@ void sendSensor()
   float t = dht.getTemperature();
 
   if (isnan(h) || isnan(t)) {
-    Serial.println("Failed to read from DHT sensor!");
+    PRINTLNDEBUG("Failed to read from DHT sensor!");
     return;
   }
   // You can send any value at any time.
@@ -155,10 +204,16 @@ void sendSensor()
   Blynk.virtualWrite(V6, t);
 }
 
+BLYNK_CONNECTED() {
+  // Synchronize time on connection
+  rtc.begin();
+}
+
 void setup()
 {
   // Debug console
-  Serial.begin(9600);
+ 
+  if (DEBUG) Serial.begin(9600);
   strip.begin();
   refreshLeds();
   dht.setup(DHTPIN); 
@@ -166,6 +221,10 @@ void setup()
   // You can also specify server:
   //Blynk.begin(auth, ssid, pass, "blynk-cloud.com", 8442);
   //Blynk.begin(auth, ssid, pass, IPAddress(192,168,1,100), 8442);
+  terminal.println("**** Starting..."); 
+  terminal.println(getClock()); 
+  terminal.println("**** Finished setup! Enjoy");
+  terminal.flush();
 }
 
 void loop()

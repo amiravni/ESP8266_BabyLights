@@ -1,3 +1,13 @@
+#define DEBUG 0
+#define PRINTDEBUG(STR) \
+  {  \
+    if (DEBUG) Serial.print(STR); \
+  }
+#define PRINTLNDEBUG(STR) \
+  {  \
+    if (DEBUG) Serial.println(STR); \
+  }
+
 #define BLYNK_PRINT Serial /* Comment this out to disable prints and save space */
 #define NUMOFLEDS 150  //max number of LEDS in strip
 #define STRIPPIN 4  // LED strip pin in ESP
